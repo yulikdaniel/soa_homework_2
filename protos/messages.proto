@@ -1,0 +1,38 @@
+syntax = "proto3";
+
+message RegisterMessage {
+    string address = 1;
+    optional string name = 2;
+}
+
+message RegisterResult {
+    enum Status {
+        OK = 0;
+        AlreadyRegistered = 1;
+        IncorrectPort = 2;
+    }
+    Status status = 1;
+    string name = 2;
+    repeated string users = 3;
+}
+
+message LeaveMessage {
+    string address = 1;
+}
+
+message LeaveResult {
+}
+
+message JoinNotification {
+    string name = 1;
+}
+
+message NotifyJoinResponse {}
+
+message LeaveNotification {
+    string name = 1;
+}
+
+message NotifyLeaveResponse {}
+
+message PingMessage {}

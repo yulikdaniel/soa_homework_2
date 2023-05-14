@@ -1,0 +1,9 @@
+syntax = "proto3";
+
+import "messages.proto";
+
+service Client {
+    rpc NotifyJoin (JoinNotification) returns (NotifyJoinResponse) {}
+    rpc NotifyLeave (LeaveNotification) returns (NotifyLeaveResponse) {}
+    rpc Ping (PingMessage) returns (PingMessage) {}
+}

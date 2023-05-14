@@ -1,0 +1,54 @@
+version: "3.4"
+
+services:
+  serverService:
+    image: server_image
+    build:
+      context: .
+      dockerfile: server.Dockerfile  
+    environment:
+      SERVER_PORT: 5075
+    ports:
+      - 5075:5075
+
+  clientService1:
+    image: client_image
+    build:
+      context: .
+      dockerfile: client.Dockerfile  
+    environment:
+      SERVER_ADDRESS: serverService:5075
+      CLIENT_ADDRESS: clientService1:5076
+      CLIENT_PORT: 5076
+    ports:
+      - 5076:5076
+    depends_on:
+      - serverService
+
+  clientService2:
+    image: client_image
+    build:
+      context: .
+      dockerfile: client.Dockerfile
+    environment:
+      SERVER_ADDRESS: serverService:5075
+      CLIENT_ADDRESS: clientService2:5077
+      CLIENT_PORT: 5077
+    ports:
+      - 5077:5077
+    depends_on:
+      - serverService
+
+  clientService3:
+    image: client_image
+    build:
+      context: .
+      dockerfile: client.Dockerfile  
+    environment:
+      SERVER_ADDRESS: serverService:5075
+      CLIENT_ADDRESS: clientService3:5078
+      CLIENT_PORT: 5078
+    ports:
+      - 5078:5078
+    depends_on:
+      - serverService
