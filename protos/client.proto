@@ -6,4 +6,6 @@ service Client {
     rpc NotifyJoin (JoinNotification) returns (NotifyJoinResponse) {}
     rpc NotifyLeave (LeaveNotification) returns (NotifyLeaveResponse) {}
     rpc Ping (PingMessage) returns (PingMessage) {}
+    rpc GameNotify (GameNotification) returns (GameNotifyResponse) {}
+    rpc GiveActionOptions (ActionOptions) returns (ActionOptionsResponse) {}
 }

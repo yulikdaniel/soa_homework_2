@@ -52,3 +52,17 @@ services:
       - 5078:5078
     depends_on:
       - serverService
+
+  clientService4:
+    image: client_image
+    build:
+      context: .
+      dockerfile: client.Dockerfile  
+    environment:
+      SERVER_ADDRESS: serverService:5075
+      CLIENT_ADDRESS: clientService4:5079
+      CLIENT_PORT: 5079
+    ports:
+      - 5079:5079
+    depends_on:
+      - serverService

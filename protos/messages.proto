@@ -36,3 +36,42 @@ message LeaveNotification {
 message NotifyLeaveResponse {}
 
 message PingMessage {}
+
+message GameNotification {
+    string type = 1;
+    string text = 2;
+}
+
+message GameNotifyResponse {}
+
+message Action {
+    enum Actions {
+        DEFAULT = 0; // For some reason fields with zero do not get python-printed correctly, hence this workarround
+        Kill = 1;
+        Vote = 2;
+        Check = 3;
+        Sleep = 4;
+        Wake = 5;
+    }
+    Actions type = 1;
+    optional string arg = 2;
+}
+
+message ActionOptions {
+    repeated Action actions = 1;
+}
+
+message TakeActionMessage {
+    Action action = 1;
+    string address = 2;
+}
+
+message ActionResult {
+    enum Status {
+        OK = 0;
+        NotAllowed = 1;
+    }
+    Status status = 1;
+}
+
+message ActionOptionsResponse {}

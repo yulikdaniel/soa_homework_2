@@ -5,4 +5,5 @@ import "messages.proto";
 service Server {
     rpc Register (RegisterMessage) returns (RegisterResult) {}
     rpc Leave (LeaveMessage) returns (LeaveResult) {}
+    rpc TakeAction (TakeActionMessage) returns (ActionResult) {}
 }
