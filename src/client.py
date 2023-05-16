@@ -23,30 +23,30 @@ class Client(client_pb2_grpc.ClientServicer):
         mes.address = self.address
         answer = self.server_stub.Register(mes)
         if answer.status != messages_pb2.RegisterResult.Status.OK:
-            #logging.info("Got registration status " + str(answer.status))
-            #logging.info("Something is wrong, exiting")
+            logging.info("Got registration status " + str(answer.status))
+            logging.info("Something is wrong, exiting")
             exit(1)
         else:
             self.name = answer.name
             self.connected_players = answer.users
-            #logging.info("Successfully registered at the server as " + answer.name)
-            #logging.info(f"Currently connected players (apart from me, {self.name}), are: {','.join(self.connected_players)}")
+            logging.info("Successfully registered at the server as " + answer.name)
+            logging.info(f"Currently connected players (apart from me, {self.name}), are: {','.join(self.connected_players)}")
     
     def NotifyJoin(self, request, context):
         self.connected_players.append(request.name)
-        #logging.info("Welcome, " + request.name)
-        #logging.info(f"Currently connected players (apart from me, {self.name}), are: {','.join(self.connected_players)}")
+        logging.info("Welcome, " + request.name)
+        logging.info(f"Currently connected players (apart from me, {self.name}), are: {','.join(self.connected_players)}")
         return messages_pb2.NotifyJoinResponse()
     
     def NotifyLeave(self, request, context):
         if request.name in self.connected_players:
             self.connected_players.remove(request.name)
-        #logging.info("Goodbye, " + request.name)
-        #logging.info(f"Currently connected players (apart from me, {self.name}), are: {','.join(self.connected_players)}")
+        logging.info("Goodbye, " + request.name)
+        logging.info(f"Currently connected players (apart from me, {self.name}), are: {','.join(self.connected_players)}")
         return messages_pb2.NotifyLeaveResponse()
 
     def GameNotify(self, request, context):
-        #logging.info(f"Got {request.type} notification from server: {request.text}")
+        logging.info(f"Got {request.type} notification from server: {request.text}")
         return messages_pb2.GameNotifyResponse()
     
     def human_readable_action(action):
@@ -58,15 +58,15 @@ class Client(client_pb2_grpc.ClientServicer):
         # preserve the possibility to let humans play this game
         options = list(request.actions)
 
-        #logging.info(f"My options are: {[Client.human_readable_action(x) for x in options]}")
+        logging.info(f"My options are: {[Client.human_readable_action(x) for x in options]}")
         option = random.choice(options)
-        #logging.info(f"I pick: {Client.human_readable_action(option)}")
+        logging.info(f"I pick: {Client.human_readable_action(option)}")
 
         action_mes = messages_pb2.TakeActionMessage()
         action_mes.address = self.address
         action_mes.action.CopyFrom(option)
         result = self.server_stub.TakeAction(action_mes)
-        #logging.info(f"Status is {str(result.status)}")
+        logging.info(f"Status is {str(result.status)}")
 
         return messages_pb2.ActionOptionsResponse()
 
@@ -89,7 +89,7 @@ def serve():
     client_pb2_grpc.add_ClientServicer_to_server(client_instance, server)
     server.add_insecure_port(address)
     server.start()
-    #logging.info("Started client at address " + address)
+    logging.info("Started client at address " + address)
 
     client_instance.link_to_server(stub)
 

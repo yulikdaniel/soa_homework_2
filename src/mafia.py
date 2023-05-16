@@ -27,7 +27,7 @@ class Notification(Enum):
     Voted = 2 # Someone was voted out
     ChangeState = 3 # Day or Night started
     GameOver = 4 # The game is over
-    Disconnected = 5 # A player has disconnected from the server
+    GameStarts = 5 # Beginning of a game
 
 class ExpectedLockException(Exception):
     pass
@@ -56,7 +56,12 @@ class GameState:
                 return False
             self.players[name] = PlayerState(name)
             return True
-    
+
+    def remove_player(self, name):
+        with self.lock:
+            if name in self.players:
+                self.players[name].alive = False
+
     def is_ok(self):
         with self.lock:
             return len(self.players) in roles_config
@@ -76,12 +81,20 @@ class GameState:
                 self.players[key].alive = True
                 cnt += 1
             self.alive_num = len(roles)
+            self.notifications.append((Notification.GameStarts, "A new mafia game is starting!"))
             self.setup_day()
 
     # Returns the list of possible actions for the player
     def actions(self, name):
         res = []
+
         with self.lock:
+            if not self.game_started:
+                return res
+
+            if name not in self.players:
+                return res
+
             if not self.players[name].alive:
                 return res
 

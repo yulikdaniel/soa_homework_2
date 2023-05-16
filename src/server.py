@@ -13,9 +13,7 @@ import server_pb2_grpc, messages_pb2, client_pb2_grpc
 from mafia import GameState, Notification, Actions
 
 TIMEOUT = 0.2
-unused_names = {"IronGolem1543", "EpicWinner", "DoctorWho666", "grpc_master", "CreativeName1234", "LordVoldemort", "Placeholder133"}
-connected_users = dict()
-address_by_name = dict()
+TIME_BETWEEN_GAMES = 5
 
 
 class RemoteClient:
@@ -32,6 +30,7 @@ class RemoteClient:
             return True
         except grpc.RpcError as rpc_error:
             if rpc_error.code() == grpc.StatusCode.DEADLINE_EXCEEDED or rpc_error.code() == grpc.StatusCode.UNAVAILABLE:
+                logging.info("Failed to answer notify new person")
                 return False
             raise rpc_error
     
@@ -43,6 +42,7 @@ class RemoteClient:
             return True
         except grpc.RpcError as rpc_error:
             if rpc_error.code() == grpc.StatusCode.DEADLINE_EXCEEDED or rpc_error.code() == grpc.StatusCode.UNAVAILABLE:
+                logging.info("Failed to answer notify person leave")
                 return False
             raise rpc_error
     
@@ -52,6 +52,7 @@ class RemoteClient:
             return True
         except grpc.RpcError as rpc_error:
             if rpc_error.code() == grpc.StatusCode.DEADLINE_EXCEEDED or rpc_error.code() == grpc.StatusCode.UNAVAILABLE:
+                logging.info("Failed to answer ping")
                 return False
             raise rpc_error
     
@@ -85,45 +86,48 @@ class Server(server_pb2_grpc.ServerServicer):
         self.remove_queue = []
         self.remove_queue_lock = Lock()
         self.registration_lock = Lock()
+        self.last_checkpoint = time.time()
 
         self.game = GameState()
+
+        self.unused_names = {"IronGolem1543", "EpicWinner", "DoctorWho666", "grpc_master", "CreativeName1234", "LordVoldemort", "Placeholder133"}
+        self.connected_users = dict()
+        self.address_by_name = dict()
 
     def Register(self, request, context):
         answer = messages_pb2.RegisterResult()
 
-        if request.address in connected_users:
+        if request.address in self.connected_users:
             answer.status = messages_pb2.RegisterResult.Status.AlreadyRegistered
         else:
 
             with self.registration_lock:
-                name = random.choice(list(unused_names))
+                name = random.choice(list(self.unused_names))
                 if request.HasField("name"):
-                    if request.name not in address_by_name:
+                    if request.name not in self.address_by_name:
                         name = request.name
-                
+
                 answer.status = messages_pb2.RegisterResult.Status.OK
                 answer.name = name
-                answer.users.extend(list(address_by_name.keys()))
+                answer.users.extend(list(self.address_by_name.keys()))
 
-                unused_names.discard(name)
-                address_by_name[name] = request.address
-                connected_users[request.address] = RemoteClient(request.address, name)
+                self.unused_names.discard(name)
+                self.address_by_name[name] = request.address
+                self.connected_users[request.address] = RemoteClient(request.address, name)
 
             logging.info(name + " at address " + str(request.address) + " has joined the server!!!!")
 
             small_queue = []
             with self.registration_lock:
-                for address in connected_users:
+                for address in self.connected_users:
                     if address != request.address:
-                        if not connected_users[address].NotifyNewPerson(name, request.address):
+                        if not self.connected_users[address].NotifyNewPerson(name, request.address):
                             small_queue.append(address)
 
             with self.remove_queue_lock:
                 self.remove_queue.extend(small_queue)
-            
+
             self.game.add_player(name)
-            if self.game.is_ok():
-                self.game.start_game()
 
         return answer
 
@@ -136,16 +140,14 @@ class Server(server_pb2_grpc.ServerServicer):
         address = request.address
         actype = Actions(request.action.type)
 
-        name = connected_users[address].name
-        logging.info("Received action " + str(actype) + " from " + name)
+        name = self.connected_users[address].name
+        logging.info(f"Received action {actype} {request.action.arg} from {name}")
         action = (actype, request.action.arg) if request.action.HasField("arg") else (actype,)
         answer = messages_pb2.ActionResult()
 
         if action in self.game.actions(name):
             answer.status = messages_pb2.ActionResult.Status.OK
             self.game.perform_action(name, action)
-
-            # logging.info("Done action " + str(action) + " from " + name)
         else:
             answer.status = messages_pb2.ActionResult.Status.NotAllowed
 
@@ -157,39 +159,51 @@ class Server(server_pb2_grpc.ServerServicer):
                 if len(self.remove_queue) == 0:
                     return
                 address = self.remove_queue.pop()
+
             with self.registration_lock:
-                if address not in connected_users:
+                if address not in self.connected_users:
                     continue
-                user = connected_users.pop(address)
-                address_by_name.pop(user.name)
-                unused_names.add(user.name)
+                user = self.connected_users.pop(address)
+                self.address_by_name.pop(user.name)
+                self.unused_names.add(user.name)
 
-            name = user.name
+                name = user.name
+                small_queue = []
+                logging.info("Say goodbye to " + name + " they left the server")
+                for person in self.connected_users.values():
 
-            logging.info("Say goodbye to " + name)
-            for person in connected_users.values():
+                    if not person.NotifyPersonLeave(name):
+                        small_queue.append(person.address)
 
-                if not person.NotifyPersonLeave(name):
-                    with self.remove_queue_lock:
-                        self.remove_queue.append(person.address)
+            with self.remove_queue_lock:
+                self.remove_queue.extend(small_queue)
     
     def ping(self):
         small_queue = []
         with self.registration_lock:
-            for address in connected_users:
-                if not connected_users[address].Ping():
+            for address in self.connected_users:
+                if not self.connected_users[address].Ping():
                     small_queue.append(address)
         with self.remove_queue_lock:
             self.remove_queue.extend(small_queue)
     
     def send_game_notifications(self):
         notification = self.game.take_notification()
+
         if notification is None:
             return False
+
+        if notification[0] == Notification.GameOver:
+            with self.registration_lock:
+                self.game = GameState()
+                self.last_checkpoint = time.time()
+                for state in self.connected_users.values():
+                    self.game.add_player(state.name)
+
         logging.info("Sending everyone " + str(notification))
         with self.registration_lock:
-            for address in connected_users:
-                connected_users[address].game_notification(notification)
+            for address in self.connected_users:
+                self.connected_users[address].game_notification(notification)
 
         return True
     
@@ -198,16 +212,19 @@ class Server(server_pb2_grpc.ServerServicer):
         if waiting_for is None:
             return False
 
-        address = address_by_name[waiting_for]
+        address = self.address_by_name[waiting_for]
         options = self.game.actions(waiting_for)
-        # logging.info("Sending actions to " + waiting_for + " " + str(options))
-        connected_users[address].give_options(options)
-        # logging.info(f"Done sending actions to {waiting_for}")
+        self.connected_users[address].give_options(options)
         return True
     
     def send_stuff(self):
         while self.send_game_notifications() or self.send_actions():
             pass
+    
+    def attempt_start_game(self):
+        if time.time() > self.last_checkpoint + TIME_BETWEEN_GAMES:
+            if self.game.is_ok():
+                self.game.start_game()
 
 
 def serve():
@@ -225,6 +242,7 @@ def serve():
     while True:
         server_instance.ping()
         server_instance.remove_users()
+        server_instance.attempt_start_game()
         server_instance.send_stuff()
         time.sleep(1)
 
