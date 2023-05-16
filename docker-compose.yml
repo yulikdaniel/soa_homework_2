@@ -2,20 +2,14 @@ version: "3.4"
 
 services:
   serverService:
-    image: server_image
-    build:
-      context: .
-      dockerfile: server.Dockerfile  
+    image: yulikdaniel/mafia_server
     environment:
       SERVER_PORT: 5075
     ports:
       - 5075:5075
 
   clientService1:
-    image: client_image
-    build:
-      context: .
-      dockerfile: client.Dockerfile  
+    image: yulikdaniel/mafia_client  
     environment:
       SERVER_ADDRESS: serverService:5075
       CLIENT_ADDRESS: clientService1:5076
@@ -26,10 +20,7 @@ services:
       - serverService
 
   clientService2:
-    image: client_image
-    build:
-      context: .
-      dockerfile: client.Dockerfile
+    image: yulikdaniel/mafia_client
     environment:
       SERVER_ADDRESS: serverService:5075
       CLIENT_ADDRESS: clientService2:5077
@@ -40,10 +31,7 @@ services:
       - serverService
 
   clientService3:
-    image: client_image
-    build:
-      context: .
-      dockerfile: client.Dockerfile  
+    image: yulikdaniel/mafia_client
     environment:
       SERVER_ADDRESS: serverService:5075
       CLIENT_ADDRESS: clientService3:5078
@@ -54,10 +42,7 @@ services:
       - serverService
 
   clientService4:
-    image: client_image
-    build:
-      context: .
-      dockerfile: client.Dockerfile  
+    image: yulikdaniel/mafia_client
     environment:
       SERVER_ADDRESS: serverService:5075
       CLIENT_ADDRESS: clientService4:5079
@@ -68,10 +53,7 @@ services:
       - serverService
 
   clientService5:
-    image: client_image
-    build:
-      context: .
-      dockerfile: client.Dockerfile  
+    image: yulikdaniel/mafia_client
     environment:
       SERVER_ADDRESS: serverService:5075
       CLIENT_ADDRESS: clientService5:5080
