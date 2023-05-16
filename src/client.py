@@ -11,17 +11,23 @@ import server_pb2_grpc, messages_pb2, client_pb2_grpc
 from mafia import Actions
 
 class Client(client_pb2_grpc.ClientServicer):
-    def __init__(self, address):
+    def __init__(self, address, name):
         self.server_stub = None
         self.address = address
-        self.name = None
+        self.name = name
         self.connected_players = []
     
     def link_to_server(self, stub):
         self.server_stub = stub
+
         mes = messages_pb2.RegisterMessage()
         mes.address = self.address
+
+        if self.name is not None:
+            mes.name = self.name
+
         answer = self.server_stub.Register(mes)
+
         if answer.status != messages_pb2.RegisterResult.Status.OK:
             logging.info("Got registration status " + str(answer.status))
             logging.info("Something is wrong, exiting")
@@ -72,10 +78,15 @@ class Client(client_pb2_grpc.ClientServicer):
 
     def Ping(self, request, context):
         return request
+    
+    def SendRole(self, request, context):
+        logging.info(f"My role is {request.role}")
+        return messages_pb2.SendRoleResponse()
 
 
 def serve():
-    # time.sleep(random.randint(1, 5))
+    name = os.getenv("USERNAME")
+
     address = "0.0.0.0:" + os.environ.get('CLIENT_PORT', '51076')
 
     address_for_server = os.environ.get('CLIENT_ADDRESS', address)
@@ -85,7 +96,7 @@ def serve():
     stub = server_pb2_grpc.ServerStub(channel)
 
     server = grpc.server(futures.ThreadPoolExecutor(max_workers=1))
-    client_instance = Client(address_for_server)
+    client_instance = Client(address_for_server, name)
     client_pb2_grpc.add_ClientServicer_to_server(client_instance, server)
     server.add_insecure_port(address)
     server.start()

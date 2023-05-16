@@ -75,3 +75,9 @@ message ActionResult {
 }
 
 message ActionOptionsResponse {}
+
+message RoleInfo {
+    string role = 1;
+}
+
+message SendRoleResponse {}

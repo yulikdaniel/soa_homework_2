@@ -56,11 +56,23 @@ class GameState:
                 return False
             self.players[name] = PlayerState(name)
             return True
+    
+    def get_role(self, name):
+        with self.lock:
+            if not self.game_started:
+                return None
+            if name not in self.players:
+                return None
+            return self.players[name].role
 
     def remove_player(self, name):
         with self.lock:
             if name in self.players:
-                self.players[name].alive = False
+                self.players.pop(name)
+
+                if self.game_started:
+                    self.alive_num -= 1
+                    self.check_done()
 
     def is_ok(self):
         with self.lock:
@@ -80,7 +92,7 @@ class GameState:
                 self.players[key].role = roles[cnt]
                 self.players[key].alive = True
                 cnt += 1
-            self.alive_num = len(roles)
+            self.alive_num = len(self.players)
             self.notifications.append((Notification.GameStarts, "A new mafia game is starting!"))
             self.setup_day()
 
@@ -118,18 +130,21 @@ class GameState:
                             res.append((Actions.Check, player))
         return res
 
+    def check_done(self):
+        if self.done_num == self.alive_num:
+            if self.state == States.Day:
+                self.setup_night()
+            else:
+                self.setup_day()
+
     def perform_action(self, name, action):
         with self.lock:
             if action[0] == Actions.Sleep or action[0] == Actions.Wake:
                 if name not in self.done:
                     self.done.add(name)
                     self.done_num += 1
-                if self.done_num == self.alive_num:
-                    if self.state == States.Day:
-                        self.setup_night()
-                    else:
-                        self.setup_day()
-                print(self.done_num, self.alive_num, name, self.done)
+
+                self.check_done()
             else:
                 if action[0] == Actions.Vote:
                     self.votes[name] = action[1]

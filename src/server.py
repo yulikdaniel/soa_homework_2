@@ -79,6 +79,16 @@ class RemoteClient:
         except grpc.RpcError as rpc_error:
             if rpc_error.code() != grpc.StatusCode.DEADLINE_EXCEEDED and rpc_error.code() != grpc.StatusCode.UNAVAILABLE:
                raise rpc_error
+    
+    def send_role(self, role):
+        mes = messages_pb2.RoleInfo()
+        mes.role = str(role)
+
+        try:
+            self.stub.SendRole(mes, timeout=TIMEOUT)
+        except grpc.RpcError as rpc_error:
+            if rpc_error.code() != grpc.StatusCode.DEADLINE_EXCEEDED and rpc_error.code() != grpc.StatusCode.UNAVAILABLE:
+               raise rpc_error
 
 
 class Server(server_pb2_grpc.ServerServicer):
@@ -167,6 +177,8 @@ class Server(server_pb2_grpc.ServerServicer):
                 self.address_by_name.pop(user.name)
                 self.unused_names.add(user.name)
 
+                self.game.remove_player(user.name)
+
                 name = user.name
                 small_queue = []
                 logging.info("Say goodbye to " + name + " they left the server")
@@ -193,6 +205,11 @@ class Server(server_pb2_grpc.ServerServicer):
         if notification is None:
             return False
 
+        logging.info("Sending everyone " + str(notification))
+        with self.registration_lock:
+            for address in self.connected_users:
+                self.connected_users[address].game_notification(notification)
+
         if notification[0] == Notification.GameOver:
             with self.registration_lock:
                 self.game = GameState()
@@ -200,10 +217,10 @@ class Server(server_pb2_grpc.ServerServicer):
                 for state in self.connected_users.values():
                     self.game.add_player(state.name)
 
-        logging.info("Sending everyone " + str(notification))
-        with self.registration_lock:
-            for address in self.connected_users:
-                self.connected_users[address].game_notification(notification)
+        if notification[0] == Notification.GameStarts:
+            with self.registration_lock:
+                for state in self.connected_users.values():
+                    state.send_role(self.game.get_role(state.name))
 
         return True
     
@@ -211,10 +228,14 @@ class Server(server_pb2_grpc.ServerServicer):
         waiting_for = self.game.take_await_actions()
         if waiting_for is None:
             return False
+        
+        with self.registration_lock:
+            if waiting_for not in self.address_by_name:
+                return False
 
-        address = self.address_by_name[waiting_for]
-        options = self.game.actions(waiting_for)
-        self.connected_users[address].give_options(options)
+            address = self.address_by_name[waiting_for]
+            options = self.game.actions(waiting_for)
+            self.connected_users[address].give_options(options)
         return True
     
     def send_stuff(self):
