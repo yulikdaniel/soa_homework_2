@@ -113,7 +113,7 @@ class Server(server_pb2_grpc.ServerServicer):
         self.games = dict()
         self.unique_game_id = 0
 
-        self.unused_names = {"IronGolem1543", "EpicWinner", "DoctorWho666", "grpc_master", "CreativeName1234", "LordVoldemort", "Placeholder133", "ConcurrencyRules", "IAmDoneWithThisHomework"}
+        self.unused_names = {"IronGolem1543", "EpicWinner", "DoctorWho666", "grpc_master", "CreativeName1234", "LordVoldemort", "Placeholder133", "ConcurrencyRules", "IAmDoneWithThisHomework", "SpaceBar"}
         self.connected_users = dict()
         self.address_by_name = dict()
 

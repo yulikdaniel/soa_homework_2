@@ -103,6 +103,6 @@ services:
       CLIENT_ADDRESS: clientService9:5084
       CLIENT_PORT: 5084
     ports:
-      - 5080:5084
+      - 5084:5084
     depends_on:
       - serverService
