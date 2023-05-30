@@ -125,10 +125,12 @@ class Server(server_pb2_grpc.ServerServicer):
         else:
 
             with self.registration_lock:
-                name = random.choice(list(self.unused_names))
+                name = None
                 if request.HasField("name"):
                     if request.name not in self.address_by_name:
                         name = request.name
+                if name is None:
+                    name = random.choice(list(self.unused_names))
 
                 answer.status = messages_pb2.RegisterResult.Status.OK
                 answer.name = name
