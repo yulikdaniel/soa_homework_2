@@ -16,6 +16,13 @@ message RegisterResult {
     repeated string users = 3;
 }
 
+message NewGameDetails {
+    repeated string users = 1;
+    int32 game_id = 2;
+}
+
+message NewGameResponse {}
+
 message LeaveMessage {
     string address = 1;
 }

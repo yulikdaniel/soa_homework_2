@@ -62,3 +62,47 @@ services:
       - 5080:5080
     depends_on:
       - serverService
+
+  clientService6:
+    image: yulikdaniel/mafia_client
+    environment:
+      SERVER_ADDRESS: serverService:5075
+      CLIENT_ADDRESS: clientService6:5081
+      CLIENT_PORT: 5081
+    ports:
+      - 5081:5081
+    depends_on:
+      - serverService
+
+  clientService7:
+    image: yulikdaniel/mafia_client
+    environment:
+      SERVER_ADDRESS: serverService:5075
+      CLIENT_ADDRESS: clientService7:5082
+      CLIENT_PORT: 5082
+    ports:
+      - 5082:5082
+    depends_on:
+      - serverService
+
+  clientService8:
+    image: yulikdaniel/mafia_client
+    environment:
+      SERVER_ADDRESS: serverService:5075
+      CLIENT_ADDRESS: clientService8:5083
+      CLIENT_PORT: 5083
+    ports:
+      - 5083:5083
+    depends_on:
+      - serverService
+
+  clientService9:
+    image: yulikdaniel/mafia_client
+    environment:
+      SERVER_ADDRESS: serverService:5075
+      CLIENT_ADDRESS: clientService9:5084
+      CLIENT_PORT: 5084
+    ports:
+      - 5080:5084
+    depends_on:
+      - serverService

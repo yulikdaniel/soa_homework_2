@@ -34,9 +34,8 @@ class Client(client_pb2_grpc.ClientServicer):
             exit(1)
         else:
             self.name = answer.name
-            self.connected_players = answer.users
             logging.info("Successfully registered at the server as " + answer.name)
-            logging.info(f"Currently connected players (apart from me, {self.name}), are: {','.join(self.connected_players)}")
+            logging.info(f"Currently connected players (apart from me, {self.name}), are: {','.join(answer.users)}")
     
     def NotifyJoin(self, request, context):
         self.connected_players.append(request.name)
@@ -82,6 +81,11 @@ class Client(client_pb2_grpc.ClientServicer):
     def SendRole(self, request, context):
         logging.info(f"My role is {request.role}")
         return messages_pb2.SendRoleResponse()
+    
+    def NewGame(self, request, context):
+        self.connected_players = request.users
+        logging.info(f"I entered session ({request.game_id}). With players {', '.join(self.connected_players)} and me, {self.name}")
+        return messages_pb2.NewGameResponse()
 
 
 def serve():

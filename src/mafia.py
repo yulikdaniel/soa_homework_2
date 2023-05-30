@@ -52,7 +52,7 @@ class GameState:
 
     def add_player(self, name):
         with self.lock:
-            if self.game_started:
+            if self.game_started or len(self.players) + 1 > max(roles_config.keys()):
                 return False
             self.players[name] = PlayerState(name)
             return True

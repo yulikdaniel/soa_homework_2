@@ -9,4 +9,5 @@ service Client {
     rpc GameNotify (GameNotification) returns (GameNotifyResponse) {}
     rpc GiveActionOptions (ActionOptions) returns (ActionOptionsResponse) {}
     rpc SendRole (RoleInfo) returns (SendRoleResponse) {}
+    rpc NewGame (NewGameDetails) returns (NewGameResponse) {}
 }
