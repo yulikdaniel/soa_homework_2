@@ -107,19 +107,30 @@ app = Flask(__name__)
 def add_user(name):
     logging.info(f"INSERT {name}")
     info = request.get_json()
-    add_entry(name, avatar_img="default.png", played=0, wins=0, ingame=0, age=info.get("age"), email=info.get("email"))
+
+    try:
+        add_entry(name, avatar_img="default.png", played=0, wins=0, ingame=0, age=info.get("age"), email=info.get("email"))
+    except:
+        abort(400)
+
     return "Done\n"
 
 @app.route("/users/<string:name>", methods=["PUT"])
 def update_user(name):
     info = request.get_json()
-    update_set_entry(name, age=info.get("age"), email=info.get("email"))
+    try:
+        update_set_entry(name, age=info.get("age"), email=info.get("email"))
+    except:
+        abort(400)
     return "Done\n"
 
 @app.route("/users/add/<string:name>", methods=["PUT"])
 def update_user_add(name):
     info = request.get_json()
-    update_add_entry(name, ingame=info.get("ingame"), played=info.get("played"), wins=info.get("wins"))
+    try:
+        update_add_entry(name, ingame=info.get("ingame"), played=info.get("played"), wins=info.get("wins"))
+    except:
+        abort(400)
     return "Done\n"
 
 @app.route("/users/avatar/<string:name>", methods=["POST"])
@@ -129,7 +140,10 @@ def update_image(name):
     if img is not None:
         img.save(f"images/{name}.png")
         avatar = f"{name}.png"
-    update_set_entry(name, avatar_img=avatar)
+    try:
+        update_set_entry(name, avatar_img=avatar)
+    except:
+        abort(400)
     return "Done\n"
 
 @app.route("/reports/<string:name>", methods=["POST"])
