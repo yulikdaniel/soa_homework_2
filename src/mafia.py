@@ -3,6 +3,7 @@ from random import shuffle
 from threading import Lock
 from enum import Enum
 from collections import deque
+import time
 
 
 class PlayerState:
@@ -50,6 +51,8 @@ class GameState:
         self.notifications = deque() # Notifications for the server to send to the clients
         self.await_actions = list() # List of people who we need to ask for actions
 
+        self.mafia_won = True
+
     def add_player(self, name):
         with self.lock:
             if self.game_started or len(self.players) + 1 > max(roles_config.keys()):
@@ -82,6 +85,7 @@ class GameState:
         with self.lock:
             if self.game_started:
                 return
+            self.start_time = time.time()
             self.game_started = True
             roles = []
             for role, number in roles_config[len(self.players)].items():
@@ -244,9 +248,11 @@ class GameState:
         
         if mafia_alive == 0:
             self.notifications.append((Notification.GameOver, "Civilians win!"))
+            self.mafia_won = False
             return True
         if mafia_alive != 0 and mafia_alive * 2 >= self.alive_num:
             self.notifications.append((Notification.GameOver, "Mafia wins!"))
+            self.mafia_won = True
             return True
         return False
     

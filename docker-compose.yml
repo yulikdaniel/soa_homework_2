@@ -1,12 +1,22 @@
 version: "3.4"
 
 services:
+  restapiService:
+    image: yulikdaniel/mafia_restapi
+    environment:
+      PORT: 15430
+    ports:
+      - 15430:15430
+
   serverService:
     image: yulikdaniel/mafia_server
     environment:
       SERVER_PORT: 5075
+      RESTSERVER_PORT: restapiService:15430
     ports:
       - 5075:5075
+    depends_on:
+      - restapiService
 
   clientService1:
     image: yulikdaniel/mafia_client  

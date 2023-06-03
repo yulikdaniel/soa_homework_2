@@ -4,6 +4,8 @@ import logging
 import random
 import os, sys
 import time
+import requests
+from config import Role
 
 sys.path.append("../protos")
 
@@ -14,6 +16,10 @@ from mafia import GameState, Notification, Actions
 
 TIMEOUT = 0.2
 TIME_BETWEEN_GAMES = 5
+
+
+def random_email(name):
+    return name + "@" + random.choice(["gmail.com", "yandex.ru", "edu.hse.ru", "myself.com", "musician.org", "workmail.com"])
 
 
 class RemoteClient:
@@ -104,7 +110,7 @@ class RemoteClient:
 
 
 class Server(server_pb2_grpc.ServerServicer):
-    def __init__(self):
+    def __init__(self, db_server):
         self.remove_queue = []
         self.remove_queue_lock = Lock()
         self.registration_lock = Lock()
@@ -116,6 +122,7 @@ class Server(server_pb2_grpc.ServerServicer):
         self.unused_names = {"IronGolem1543", "EpicWinner", "DoctorWho666", "grpc_master", "CreativeName1234", "LordVoldemort", "Placeholder133", "ConcurrencyRules", "IAmDoneWithThisHomework", "SpaceBar"}
         self.connected_users = dict()
         self.address_by_name = dict()
+        self.db_server = db_server
 
     def Register(self, request, context):
         answer = messages_pb2.RegisterResult()
@@ -140,8 +147,11 @@ class Server(server_pb2_grpc.ServerServicer):
                 self.address_by_name[name] = request.address
                 self.connected_users[request.address] = RemoteClient(request.address, name)
 
+            if self.db_server:
+                requests.post(self.db_server + f"/users/{name}", json={"email": random_email(name), "age": random.randint(0, 154)})
+
         return answer
-    
+
     def PickGame(self, name):
         chosen = None
         for game_id, game in self.games.items():
@@ -254,10 +264,16 @@ class Server(server_pb2_grpc.ServerServicer):
 
         if notification[0] == Notification.GameOver:
             with self.registration_lock:
-                self.games.pop(game_id)
+                game = self.games.pop(game_id)
                 for state in self.connected_users.values():
                     if state.game_id == game_id:
-                        logging.info("Player " + state.name + " picked game " + str(self.PickGame(state.name))) 
+                        logging.info("Player " + state.name + " picked game " + str(self.PickGame(state.name)))
+
+            if self.db_server:
+                now = time.time()
+                for player in game.players.values():
+                    requests.put(self.db_server + f"/users/add/{player.name}",
+                                  json={"played" : 1, "wins" : int(game.mafia_won == (player.role == Role.Mafia)), "ingame" : round(now - game.start_time, 3)})
 
         if notification[0] == Notification.GameStarts:
             with self.registration_lock:
@@ -322,8 +338,12 @@ class Server(server_pb2_grpc.ServerServicer):
 
 
 def serve():
+    db_server = os.environ.get("RESTSERVER_PORT")
+    if db_server is not None:
+        db_server = "http://" + db_server
+
     address = "0.0.0.0:" + os.environ.get('SERVER_PORT', '51075')
-    server_instance = Server()
+    server_instance = Server(db_server)
 
     executor = futures.ThreadPoolExecutor(max_workers=1)
 
