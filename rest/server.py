@@ -138,7 +138,7 @@ def update_image(name):
     img = request.files.get("avatar")
     avatar = "default.png"
     if img is not None:
-        img.save(f"images/{name}.png")
+        img.save(f"rest/images/{name}.png")
         avatar = f"{name}.png"
     try:
         update_set_entry(name, avatar_img=avatar)
