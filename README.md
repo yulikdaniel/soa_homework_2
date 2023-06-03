@@ -19,9 +19,12 @@
 
 `docker rm my_client` - нужно, чтобы удалить контейнер с этим именем перед созданием нового. Если эта команда возвращает ошибку, что контейнера нет, это нормально (при первом запуске она так и сделает).
 
-`docker run --env SERVER_ADDRESS=serverService:5075 --env CLIENT_ADDRESS=my_client:6000 --env CLIENT_PORT=6000 --env USERNAME=yulicheck --network soa_homework_2_default --name my_client client_image`
+`docker run --env SERVER_ADDRESS=serverService:5075 --env CLIENT_ADDRESS=my_client:6000 --env CLIENT_PORT=6000 --env USERNAME=yulicheck --network soa_homework_2_default --name my_client yulikdaniel/mafia_client`
 
 Здесь мы передаём все необходимые переменные окружения (особое внимание на USERNAME - через него можно задать кастомное имя), подключаемся к сети, к которой подключается docker-compose (по крайней мере, у меня на ноутбуке, и я очень надеюсь, что не только). *Эту команду надо запускать после того, как сервер уже запущен*. Клиент подключится к следующей игре (если игра уже началась, он будет получать уведомления, но не сможет выполнять действия, как мёртвый).
+
+Важно при создании разных клиентов обновлять порты клиента в обоих местах, а в переменной окружения CLIENT_ADDRESS менять и первую часть таким образом, чтобы она соответствовала имени контейнера (--name), например: 
+`docker run --env SERVER_ADDRESS=serverService:5075 --env CLIENT_ADDRESS=my_client2:6001 --env CLIENT_PORT=6001 --env USERNAME=yulicheck --network soa_homework_2_default --name my_client2 yulikdaniel/mafia_client`
 
 *Enjoy*
 
