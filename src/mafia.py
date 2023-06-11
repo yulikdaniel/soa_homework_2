@@ -265,3 +265,17 @@ class GameState:
         with self.lock:
             if self.await_actions:
                 return self.await_actions.pop()
+    
+    def process_message(self, name):
+        with self.lock:
+            if not self.game_started:
+                return ([player.name for player in self.players.values()], "(pre-game chat)")
+            if not self.players[name].alive:
+                return ([], "Dead people cannot send messages")
+            if self.state == States.Night:
+                if self.players[name].role == Role.Mafia:
+                    return ([player.name for player in self.players.values() if player.role == Role.Mafia], "(in mafia chat)")
+                else:
+                    return ([], "Only mafia can message at night")
+            else:
+                return ([player.name for player in self.players.values()], "(main chat)")

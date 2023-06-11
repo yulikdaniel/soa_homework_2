@@ -8,6 +8,17 @@ services:
     ports:
       - 15430:15430
 
+  rabbitMQService:
+    image: rabbitmq:3-management
+    hostname: "rabbitMQService"
+    ports:
+        - 25672:25672
+        - 15672:15672
+        - 5672:5672
+    logging:
+      driver: none
+
+
   serverService:
     image: yulikdaniel/mafia_server
     environment:
@@ -114,5 +125,16 @@ services:
       CLIENT_PORT: 5084
     ports:
       - 5084:5084
+    depends_on:
+      - serverService
+
+  clientService10:
+    image: yulikdaniel/mafia_client
+    environment:
+      SERVER_ADDRESS: serverService:5075
+      CLIENT_ADDRESS: clientService10:5085
+      CLIENT_PORT: 5085
+    ports:
+      - 5085:5085
     depends_on:
       - serverService

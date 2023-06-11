@@ -90,7 +90,7 @@ def worker_pdf(queue_in):
             canvas.drawString(12, 25, f"Profile with name {name} was not found...")
             canvas.save()
         else:
-            canvas = Canvas(f"rest/reports/{task_id}.pdf", pagesize=(300, 110))
+            canvas = Canvas(f"rest/reports/{task_id}.pdf", pagesize=(350, 110))
             canvas.drawString(12, 90, f"Name: {data[0]}")
             canvas.drawString(12, 75, f"Age: {data[1] if data[1] is not None else 'Not set'}")
             canvas.drawString(12, 60, f"Email: {data[2] if data[2] is not None else 'Not set'}")
@@ -98,7 +98,7 @@ def worker_pdf(queue_in):
             canvas.drawString(12, 30, f"Wins: {data[5] if data[5] is not None else 'Not set'}")
             canvas.drawString(12, 15, f"Time spent playing: {round(data[6], 3) if data[6] is not None else 'Not set'} seconds")
 
-            canvas.drawImage(f"rest/images/{data[3]}", x=200, y=10, width=90, height=90)
+            canvas.drawImage(f"rest/images/{data[3]}", x=250, y=10, width=90, height=90)
             canvas.save()
 
 app = Flask(__name__)

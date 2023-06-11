@@ -1,11 +1,12 @@
 from concurrent import futures
-from threading import Lock
 import logging
 import random
 import os, sys
 import time
 import requests
 from config import Role
+import pika
+import threading
 
 sys.path.append("../protos")
 
@@ -28,6 +29,18 @@ class RemoteClient:
         self.name = name
         self.stub = client_pb2_grpc.ClientStub(grpc.insecure_channel(self.address))
         self.game_id = None
+        
+        while True:
+            try:
+                connection = pika.BlockingConnection(pika.ConnectionParameters(host="rabbitMQService"))
+                channel = connection.channel()
+                channel.queue_declare(queue=str(self.address) + "_out")
+                channel.basic_consume(queue=str(self.address) + "_out", on_message_callback=lambda *args: server_instance.on_client_message(*args, self.address), auto_ack=True)
+                threading.Thread(target=lambda:channel.start_consuming()).start()
+                break
+            except:
+                time.sleep(3)
+                logger.info("Waiting for rabbitmq server to start")
 
     def NotifyNewPerson(self, name):
         mes = messages_pb2.JoinNotification()
@@ -37,7 +50,7 @@ class RemoteClient:
             return True
         except grpc.RpcError as rpc_error:
             if rpc_error.code() == grpc.StatusCode.DEADLINE_EXCEEDED or rpc_error.code() == grpc.StatusCode.UNAVAILABLE:
-                logging.info("Failed to answer notify new person")
+                logger.info("Failed to answer notify new person")
                 return False
             raise rpc_error
     
@@ -49,7 +62,7 @@ class RemoteClient:
             return True
         except grpc.RpcError as rpc_error:
             if rpc_error.code() == grpc.StatusCode.DEADLINE_EXCEEDED or rpc_error.code() == grpc.StatusCode.UNAVAILABLE:
-                logging.info("Failed to answer notify person leave")
+                logger.info("Failed to answer notify person leave")
                 return False
             raise rpc_error
     
@@ -59,7 +72,7 @@ class RemoteClient:
             return True
         except grpc.RpcError as rpc_error:
             if rpc_error.code() == grpc.StatusCode.DEADLINE_EXCEEDED or rpc_error.code() == grpc.StatusCode.UNAVAILABLE:
-                logging.info("Failed to answer ping")
+                logger.info("Failed to answer ping")
                 return False
             raise rpc_error
     
@@ -107,13 +120,20 @@ class RemoteClient:
         except grpc.RpcError as rpc_error:
             if rpc_error.code() != grpc.StatusCode.DEADLINE_EXCEEDED and rpc_error.code() != grpc.StatusCode.UNAVAILABLE:
                raise rpc_error
+    
+    def chat_message(self, message):
+        connection = pika.BlockingConnection(pika.ConnectionParameters(host="rabbitMQService"))
+        channel = connection.channel()
+        channel.queue_declare(str(self.address))
+        channel.basic_publish(exchange='', routing_key=str(self.address), body=message.encode())
+        connection.close()
 
 
 class Server(server_pb2_grpc.ServerServicer):
     def __init__(self, db_server):
         self.remove_queue = []
-        self.remove_queue_lock = Lock()
-        self.registration_lock = Lock()
+        self.remove_queue_lock = threading.Lock()
+        self.registration_lock = threading.Lock()
         self.last_checkpoint = time.time()
 
         self.games = dict()
@@ -167,7 +187,7 @@ class Server(server_pb2_grpc.ServerServicer):
         self.connected_users[self.address_by_name[name]].new_game([player.name for player in self.connected_users.values() if player.game_id == chosen], chosen)
         self.connected_users[self.address_by_name[name]].game_id = chosen
 
-        logging.info(name + " has joined game " + str(chosen))
+        logger.info(name + " has joined game " + str(chosen))
 
         small_queue = []
         for address, state in self.connected_users.items():
@@ -197,7 +217,7 @@ class Server(server_pb2_grpc.ServerServicer):
         actype = Actions(request.action.type)
 
         name = self.connected_users[address].name
-        logging.info(f"Received action {actype} {request.action.arg} from {name}")
+        logger.info(f"Received action {actype} {request.action.arg} from {name}")
         action = (actype, request.action.arg) if request.action.HasField("arg") else (actype,)
 
         if action in self.games[self.connected_users[address].game_id].actions(name):
@@ -227,7 +247,7 @@ class Server(server_pb2_grpc.ServerServicer):
 
                 name = user.name
                 small_queue = []
-                logging.info("Say goodbye to " + name + " they left the server")
+                logger.info("Say goodbye to " + name + " they left the server")
 
                 if user.game_id is not None:
                     for person in self.connected_users.values():
@@ -256,7 +276,7 @@ class Server(server_pb2_grpc.ServerServicer):
         if notification is None:
             return False
 
-        logging.info("Sending everyone in game" + str(game_id) + " " + str(notification))
+        logger.info("Sending everyone in game" + str(game_id) + " " + str(notification))
         with self.registration_lock:
             for state in self.connected_users.values():
                 if state.game_id == game_id:
@@ -267,7 +287,7 @@ class Server(server_pb2_grpc.ServerServicer):
                 game = self.games.pop(game_id)
                 for state in self.connected_users.values():
                     if state.game_id == game_id:
-                        logging.info("Player " + state.name + " picked game " + str(self.PickGame(state.name)))
+                        state.game_id = None
 
             if self.db_server:
                 now = time.time()
@@ -329,15 +349,34 @@ class Server(server_pb2_grpc.ServerServicer):
         if time.time() > self.last_checkpoint + TIME_BETWEEN_GAMES:
             for game_id in self.games:
                 if self.games[game_id].is_ok():
-                    logging.info("Game " + str(game_id) + " is running...")
+                    logger.info("Game " + str(game_id) + " is running...")
                     self.games[game_id].start_game()
                 else:
-                    logging.info("Game " + str(game_id) + " is still missing players to start...")
+                    logger.info("Game " + str(game_id) + " is still missing players to start...")
 
             self.last_checkpoint = time.time()
+    
+    def on_client_message(self, channel, method, properties, body, address):
+        with self.registration_lock:
+            logger.info(f"Got a message from a client! {body.decode()}")
+            player = self.connected_users.get(address)
+            if player is not None:
+                game_id = player.game_id
+                if game_id is None:
+                    player.chat_message("SERVER: Cannot send messages while not in game session")
+                else:
+                    recv, comment = self.games[game_id].process_message(player.name)
+                    for name in recv:
+                        if name == player.name:
+                            continue
+                        self.connected_users[self.address_by_name[name]].chat_message(f"{player.name}{comment}: {body.decode()}")
+                    if not recv:
+                        player.chat_message(f"SERVER: {comment}")
 
+if __name__ == '__main__':
+    logger = logging.getLogger("SERVER")
+    logger.setLevel(logging.DEBUG)
 
-def serve():
     db_server = os.environ.get("RESTSERVER_PORT")
     if db_server is not None:
         db_server = "http://" + db_server
@@ -351,7 +390,7 @@ def serve():
     server_pb2_grpc.add_ServerServicer_to_server(server_instance, server)
     server.add_insecure_port(address)
     server.start()
-    logging.info("Started server at address " + address)
+    logger.info("Started server at address " + address)
 
     while True:
         server_instance.ping()
@@ -360,8 +399,3 @@ def serve():
         server_instance.send_stuff()
         server_instance.pick_games()
         time.sleep(1)
-
-
-if __name__ == '__main__':
-    logging.basicConfig(level=logging.INFO)
-    serve()

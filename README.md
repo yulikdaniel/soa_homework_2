@@ -4,11 +4,13 @@
 
 [3. Описание rest api сервера](#rest-api-server)
 
+[4. Система сообщений](#messaging)
+
 # Описание основной части
 
 Для запуска введите:
 
-`docker-compose up restapiService serverService clientService1 clientService2 clientService3 clientService4 clientService5 clientService6 clientService7 clientService8 clientService9`
+`docker-compose up rabbitMQService restapiService serverService clientService1 clientService2 clientService3 clientService4 clientService5 clientService6 clientService7 clientService8 clientService9 clientService10`
 
 Можно вместо девяти клиентов запустить любое количество. Игры будут запускаться только пока на сервере есть хотя бы 4 клиента. В том числе достаточно подключить трёх клиентов таким образом и одного отдельно через `docker run` (см ниже).
 
@@ -64,3 +66,7 @@
 Создание профиля с почтой и возрастом осуществляется автоматически основным игровым сервером, как и обновление данных об играх.
 
 Прошу заметить, что при последовательных запусках `up` база данных не пересоздаётся, поэтому данные пользователей сохраняются. Если вы хотите сбросить данные пользователей, удалите старый контейнер или запускайте `up` с соответствущим флагом.
+
+# Messaging
+
+Весь обмен сообщений от клиентов к серверу и наоборот происходит при помощи rabbitMQ сервера, который развёрнут в отдельном контейнере. Сервер обрабатывает сообщения, проверяя, нужно ли его кому-то доставить и кому, если да. Если его доставить не нужно, он отправляет сообщение в чате этому клиенту с объяснением причины.
